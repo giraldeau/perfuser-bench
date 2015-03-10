@@ -132,7 +132,31 @@ def stride_near(dst, src, stride):
 def stride_far(dst, src, stride):
     ext.stride(dst, src, stride)
 
-def do_stride(repeat=1, size=10, stride=1):
+def stride_ext(dst, src, stride):
+    stride_far(dst, src, stride)
+    stride_near(dst, src, 1)
+
+def stride_builtin(dst, src, stride):
+    if (len(dst) != len(src)):
+        raise ValueError("src and dst must have the same size")
+    height = int(len(src) / stride)
+    for i in range(stride):
+        for j in range(height):
+            x = i * height + j
+            y = i + j * stride
+            dst[x] = src[y]
+
+def stride_py_far(dst, src, stride):
+    stride_builtin(dst, src, stride)
+
+def stride_py_near(dst, src, stride):
+    stride_builtin(dst, src, 1)
+
+def stride_py(dst, src, stride):
+    stride_py_far(dst, src, stride)
+    stride_py_near(dst, src, stride)
+
+def do_stride(repeat=1, size=10, stride=1, stride_fn=stride_ext):
     print("init...")
     src = bytearray([(x % 256) for x in range(size)])
     dst = bytearray([0] * size)
@@ -141,10 +165,6 @@ def do_stride(repeat=1, size=10, stride=1):
     api.enable_perf()
     for x in range(repeat):
         bar.update(x)
-        stride_far(dst, src, stride)
-        stride_near(dst, src, 1)
-
-
-
+        stride_fn(dst, src, stride)
     api.disable_perf()
     bar.done()
