@@ -20,10 +20,15 @@ do_stride(PyObject* self, PyObject* args)
     dst_size = PyByteArray_Size((PyObject *)dst_obj);
     height = src_size / stride;
 
+    if (src_size != dst_size) {
+        PyErr_SetString(PyExc_ValueError, "src and dst must have the same size");
+        Py_RETURN_NONE;
+    }
+
     for (i = 0; i < stride; i++) {
         for (j = 0; j < height; j++) {
-            x = (i * height + j) % dst_size;
-            y = (i + j * stride) % src_size;
+            x = (i * height + j);
+            y = (i + j * stride);
             dst[x] = src[y];
         }
     }
