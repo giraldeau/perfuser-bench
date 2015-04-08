@@ -4,6 +4,8 @@ Created on Mar 5, 2015
 @author: francis
 '''
 from linuxProfile import api, utils
+from linuxProfile.utils import ProgressBar
+from linuxProfile.api import sampling
 from perfuserBench import ext
 import time
 import pandas as pd
@@ -45,32 +47,14 @@ def f_09(fn, *args, **kwargs):
     fn(*args, **kwargs)
 
 def burn(size=0):
-    data = list(range(size))
-    data.reverse()
-    data.sort()
+    x = 0.0
+    for i in range(size):
+        x += math.sin(float(i))
 
 profile_simple = [
     (f_00, 50), (f_01, 20), (f_02, 15), (f_03, 5), (f_04, 5),
     (f_05, 1), (f_06, 1), (f_07, 1), (f_08, 1), (f_09, 1),
 ]
-
-
-class ProgressBar(object):
-    def __init__(self, total_work=1, width=40):
-        self._total_work = float(total_work)
-        self._width = width
-        self._state = 0
-    def update(self, current):
-        bar = int(math.ceil((current / self._total_work) * self._width))
-        if (bar == self._state):
-            return
-        space = self._width - bar
-        sys.stdout.write("[{}{}]\r".format("#" * bar, " " * space))
-        sys.stdout.flush()
-        self._state = bar
-    def done(self):
-        sys.stdout.write("\ndone\n")
-        sys.stdout.flush()
 
 def do_check_linear(args):
     check_linear(burn)
@@ -96,15 +80,11 @@ def check_linear(func=burn, max_power=20, max_repeat=100):
     res = grp['time'].aggregate([np.mean, np.std]).reset_index()
     res['iter_ns'] = res['mean'] / res['size'] * 1000000000
     print(res)
-    # r = res['mean'].corr(res['size'])
-    # model = pd.ols(y=res['mean'], x=res['size'])
-    # print(model.summary)
-    # print(model.sm_ols.outlier_test())
-    # print("correlation size v.s. mean: {}".format(r))
-    # p = res.plot(x='size', y='mean')
-    # p.set_yscale('log')
-    # p.set_xscale('log')
-    # plt.show()
+    # FIXME: non-interactive mode?
+#     p = res.plot(x='size', y='mean')
+#     p.set_yscale('log')
+#     p.set_xscale('log')
+#     plt.show()
 
 def do_experiment(repeat, chunk, factors):
     for _ in range(repeat):
@@ -122,7 +102,14 @@ def do_cprofile(repeat, chunk, factors):
 
 def do_linuxprofile(repeat, chunk, factors):
     api.enable_perf()
+    ev = sampling.Event(type=sampling.TYPE_SOFTWARE,
+                        config=sampling.COUNT_HW_CPU_CYCLES,
+                        sample_period=10000,
+                        freq=0)
+    sampling.open(ev)
+    sampling.enable()
     do_experiment(repeat, chunk, factors)
+    sampling.disable()
     api.disable_perf()
 
 # named function wrapper for the report
