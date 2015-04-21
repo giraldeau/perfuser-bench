@@ -62,7 +62,7 @@ class TracebackStub(object):
 
 class TracebackBuiltin(object):
     def open(self):
-        self.file = open("traceback.out", "w")
+        self.file = open("traceback.out", "a")
     def do_traceback(self):
         traceback.print_stack(file=self.file)
     def close(self):
@@ -105,13 +105,16 @@ def dump_html(df, name):
     with open(name + ".html", "w") as f:
         f.write(df.to_html())
 
-if __name__=="__main__":
+from pandas.core.format import set_eng_float_format
+
+def do_traceback_overhead():
     params = {
               "traceback": ["stub", "builtin", "ust"],
-               "depth": [1, 10, 100],
+               "depth": range(1, 100),
              }
-    
-    repeat = 1000
+    #set_eng_float_format()
+    depth = 25
+    repeat = 10000
     runner = BenchRunner()
     runner.benchmark(repeat, BenchTraceback(), params)
     data = runner.get_data()
@@ -119,18 +122,19 @@ if __name__=="__main__":
     df = df[['traceback', 'depth', 'time']]
     grp = df.groupby(list(params.keys()))
     results = grp['time'].aggregate([np.mean, np.std])
-    dump_html(df, "data")
-    dump_html(results, "results")
-    print(results.reset_index())
+    #dump_html(df, "data")
+    #dump_html(results, "results")
+    #print(results.reset_index())
+    results.to_csv('traceback.csv')
     #df[df['traceback'] == 'ust' and df['depth'] == 100]
     #for group in grp.groups:
         #x = grp.get_group(group)
         #print(group)
         #print(x.head())
 
-    v1 = df.loc[(df['traceback'] == 'stub') & (df['depth'] == 100), "time"].values        
-    v2 = df.loc[(df['traceback'] == 'ust') & (df['depth'] == 100), "time"].values
-    v3 = df.loc[(df['traceback'] == 'builtin') & (df['depth'] == 100), "time"].values
+    v1 = df.loc[(df['traceback'] == 'stub') & (df['depth'] == depth), "time"].values
+    v2 = df.loc[(df['traceback'] == 'ust') & (df['depth'] == depth), "time"].values
+    v3 = df.loc[(df['traceback'] == 'builtin') & (df['depth'] == depth), "time"].values
     #print(v1)
     #print(v2)
     #print(v3)

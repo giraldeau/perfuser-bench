@@ -1,5 +1,6 @@
 import argparse
 from perfuserBench.accuracy import do_check_linear, do_cprofile, do_linuxprofile, do_stride, profile_simple, stride_ext, stride_py
+from perfuserBench.microbench import do_traceback_overhead
 import sys
 
 def main():
@@ -7,7 +8,7 @@ def main():
     # FIXME: add proper argument parsing
     #
     print(sys.version_info)
-    cmds = ['linear', 'cprofile', 'linuxprofile', 'stride']
+    cmds = ['linear', 'cprofile', 'linuxprofile', 'stride', 'traceback']
     stride_types = { 'ext': stride_ext, 'py': stride_py }
     
     parser = argparse.ArgumentParser()
@@ -29,6 +30,8 @@ def main():
     if args.command == 'stride':
         t = stride_types.get(args.type)
         do_stride(args.repeat, args.chunk, args.stride, t)
+    if args.command == 'traceback':
+        do_traceback_overhead()
 
 
 
