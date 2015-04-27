@@ -1,7 +1,11 @@
 import argparse
-from perfuserBench.accuracy import do_check_linear, do_cprofile, do_linuxprofile, do_stride, profile_simple, stride_ext, stride_py
+from perfuserBench.accuracy import do_check_linear, do_cprofile, do_linuxprofile, do_stride, profile_simple, stride_ext, stride_py,\
+    do_experiment
 from perfuserBench.microbench import do_traceback_overhead
+from linuxProfile.launch import ProfileRunnerPerfSampling, ProfileRunner
 import sys
+import time
+import statistics
 
 def main():
     #
@@ -16,17 +20,35 @@ def main():
     parser.add_argument('--repeat', action='store', type=int, default=1)
     parser.add_argument('--stride', action='store', type=int, default=1)
     parser.add_argument('--chunk', action='store', type=int, default=128)
+    parser.add_argument('--event', '-e', action='store', type=str, default='cycles', choices=ProfileRunnerPerfSampling.evdefs.keys())
+    parser.add_argument('--period', '-p', action='store', type=int, default=10000)
+    parser.add_argument('--baseline', action='store_true', default=False)
     parser.add_argument('--type', action='store', choices=stride_types.keys(), default='ext')
     args = parser.parse_args()
 
 
     if args.command == 'linear':
         do_check_linear(args)
-
     if args.command == 'cprofile':
         do_cprofile(args.repeat, args.chunk, profile_simple)
     if args.command == 'linuxprofile':
-        do_linuxprofile(args.repeat, args.chunk, profile_simple)
+        prof = None
+        if not args.baseline:
+            prof = ProfileRunnerPerfSampling(args.event, args.period)
+        if prof:
+            prof.enable()
+        items = [0.0] * args.repeat
+        for i in range(args.repeat):
+            t1 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
+            do_experiment(1, args.chunk, profile_simple)
+            t2 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
+            items[i] = (t2 - t1) * 1000000
+        if prof:
+            prof.disable()
+        xsum = sum(items)
+        xbar = statistics.mean(items)
+        sd = statistics.stdev(items, xbar)
+        print("us n=%d sum=%0.f mean=%.0f sd=%.0f" % (len(items), xsum, xbar, sd))
     if args.command == 'stride':
         t = stride_types.get(args.type)
         do_stride(args.repeat, args.chunk, args.stride, t)

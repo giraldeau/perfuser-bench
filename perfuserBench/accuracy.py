@@ -102,7 +102,7 @@ def do_cprofile(repeat, chunk, factors):
 
 def do_linuxprofile(repeat, chunk, factors):
     api.enable_perf()
-    ev = sampling.Event(type=sampling.TYPE_SOFTWARE,
+    ev = sampling.Event(type=sampling.TYPE_HARDWARE,
                         config=sampling.COUNT_HW_CPU_CYCLES,
                         sample_period=10000,
                         freq=0)
