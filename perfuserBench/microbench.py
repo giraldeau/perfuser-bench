@@ -70,11 +70,31 @@ class TracebackBuiltin(object):
     def __repr__(self):
         return "builtin"
 
-class TracebackUST(object):
+class TracebackSimple(object):
     def open(self):
         pass
     def do_traceback(self):
-        api.traceback_ust()
+        api.traceback()
+    def close(self):
+        pass
+    def __repr__(self):
+        return "ust"
+
+class TracebackUnwind(object):
+    def open(self):
+        pass
+    def do_traceback(self):
+        api.unwind()
+    def close(self):
+        pass
+    def __repr__(self):
+        return "ust"
+
+class TracebackFull(object):
+    def open(self):
+        pass
+    def do_traceback(self):
+        api.traceback_full()
     def close(self):
         pass
     def __repr__(self):
@@ -83,7 +103,9 @@ class TracebackUST(object):
 class BenchTraceback(BenchEmpty):
     def __init__(self):
         self.tb_type = {
-                        'ust': TracebackUST(),
+                        'unwind': TracebackUnwind(),
+                        'traceback': TracebackSimple(),
+                        'full': TracebackFull(),
                         'builtin': TracebackBuiltin(),
                         'stub': TracebackStub(),
                         }
@@ -109,12 +131,11 @@ from pandas.core.format import set_eng_float_format
 
 def do_traceback_overhead():
     params = {
-              "traceback": ["stub", "builtin", "ust"],
-               "depth": range(1, 100),
+              "traceback": ["stub", "builtin", "traceback"],
+               "depth": range(0, 100, 10),
              }
-    #set_eng_float_format()
-    depth = 25
-    repeat = 10000
+    set_eng_float_format()
+    repeat = 1000
     runner = BenchRunner()
     runner.benchmark(repeat, BenchTraceback(), params)
     data = runner.get_data()
@@ -124,23 +145,24 @@ def do_traceback_overhead():
     results = grp['time'].aggregate([np.mean, np.std])
     #dump_html(df, "data")
     #dump_html(results, "results")
-    #print(results.reset_index())
+    print(results.reset_index())
     results.to_csv('traceback.csv')
+    df.to_csv('traceback_data.csv')
     #df[df['traceback'] == 'ust' and df['depth'] == 100]
     #for group in grp.groups:
         #x = grp.get_group(group)
         #print(group)
         #print(x.head())
 
-    v1 = df.loc[(df['traceback'] == 'stub') & (df['depth'] == depth), "time"].values
-    v2 = df.loc[(df['traceback'] == 'ust') & (df['depth'] == depth), "time"].values
-    v3 = df.loc[(df['traceback'] == 'builtin') & (df['depth'] == depth), "time"].values
+    #v1 = df.loc[(df['traceback'] == 'stub') & (df['depth'] == depth), "time"].values
+    #v2 = df.loc[(df['traceback'] == 'ust') & (df['depth'] == depth), "time"].values
+    #v3 = df.loc[(df['traceback'] == 'builtin') & (df['depth'] == depth), "time"].values
     #print(v1)
     #print(v2)
     #print(v3)
-    ttest1 = stats.ttest_ind(v1, v2)
-    ttest2 = stats.ttest_ind(v1, v3)
-    ttest3 = stats.ttest_ind(v2, v3)
-    print("H0: stub == ust     " + repr(ttest1))
-    print("H0: stub == builtin " + repr(ttest2))
-    print("H0: ust  == builtin " + repr(ttest3))
+    #ttest1 = stats.ttest_ind(v1, v2)
+    #ttest2 = stats.ttest_ind(v1, v3)
+    #ttest3 = stats.ttest_ind(v2, v3)
+    #print("H0: stub == ust     " + repr(ttest1))
+    #print("H0: stub == builtin " + repr(ttest2))
+    #print("H0: ust  == builtin " + repr(ttest3))
