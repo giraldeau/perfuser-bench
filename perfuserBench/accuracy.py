@@ -49,7 +49,7 @@ def f_09(fn, *args, **kwargs):
 def burn(size=0):
     x = 0.0
     for i in range(size):
-        x += math.sin(float(i))
+        x += math.sin(float(i % 10))
 
 profile_simple = [
     (f_00, 50), (f_01, 20), (f_02, 15), (f_03, 5), (f_04, 5),
