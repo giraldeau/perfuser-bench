@@ -3,7 +3,7 @@ from perfuserBench.accuracy import do_check_linear, do_cprofile, do_linuxprofile
     do_experiment
 from perfuserBench.microbench import do_traceback_overhead
 from linuxProfile.launch import ProfileRunnerPerfSampling, ProfileRunner
-from linuxProfile.api import sampling
+from linuxProfile.api import sampling, enable_perf, disable_perf
 import sys
 import time
 import statistics
@@ -34,7 +34,7 @@ def make_results(event, period, repeat, chunk, monitor, output, items, baseline)
     do_workload(items, repeat, chunk)
     prof.disable()
     s = mkstats(items)
-    
+
     h2 = sampling.hits()
     n = h2 - h1
 
@@ -55,14 +55,22 @@ def do_paper3_results(repeat, chunk, output):
         cols = [ "event", "period", "monitor", "samples", "elapsed", "mean", "stdev", "overhead_abs", "overhead_perc", "evcost" ]
         with open(output, "w+") as f:
             f.write(";".join(cols) + "\n")
-        
+
         # warm-up
         do_workload(items, repeat, chunk)
-        
+
         # baseline measure
         do_workload(items, repeat, chunk)
+        noinst = mkstats(items)
+
+        enable_perf()
+        do_workload(items, repeat, chunk)
+        disable_perf()
         baseline = mkstats(items)
-        
+
+        oh = (baseline['mean'] - noinst['mean']) / noinst['mean'] * 100
+        print('noinst = %.3f baseline = %.3f overhead = %.3f\n' % (noinst['mean'], baseline['mean'], oh))
+
         for period in [10000, 100000, 1000000, 10000000]:
             for monitor in [ "unwind", "traceback", "full" ]:
                 for event in [ "instructions", "cycles" ]:
