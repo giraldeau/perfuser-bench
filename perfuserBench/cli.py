@@ -71,9 +71,14 @@ def do_paper3_results(repeat, chunk, output):
         oh = (baseline['mean'] - noinst['mean']) / noinst['mean'] * 100
         print('noinst = %.3f baseline = %.3f overhead = %.3f\n' % (noinst['mean'], baseline['mean'], oh))
 
+        r = []
+        for p in [10000, 100000, 1000000, 10000000]:
+            r = r + [(x + 1) * p for x in range(10)]
+
         for period in [10000, 100000, 1000000, 10000000]:
             for monitor in [ "unwind", "traceback", "full" ]:
-                for event in [ "instructions", "cycles" ]:
+                # for event in [ "instructions", "cycles" ]:
+                for event in [ "cycles" ]:
                     make_results(event, period, repeat, chunk, monitor, output, items, baseline)
 
 def main():
