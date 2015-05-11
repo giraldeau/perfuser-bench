@@ -7,7 +7,7 @@ from linuxProfile.api import sampling, enable_perf, disable_perf
 import sys
 import time
 import statistics
-
+import itertools
 
 def mkstats(items):
     xsum = sum(items)
@@ -81,12 +81,89 @@ def do_paper3_results(repeat, chunk, output):
                 for event in [ "cycles" ]:
                     make_results(event, period, repeat, chunk, monitor, output, items, baseline)
 
+# copied from cpython ccprofile.py
+def task_pidigits():
+    """Pi calculation (Python)"""
+    _map = map
+    _count = itertools.count
+    _islice = itertools.islice
+
+    def calc_ndigits(n):
+        # From http://shootout.alioth.debian.org/
+        def gen_x():
+            return _map(lambda k: (k, 4 * k + 2, 0, 2 * k + 1), _count(1))
+
+        def compose(a, b):
+            aq, ar, as_, at = a
+            bq, br, bs, bt = b
+            return (aq * bq,
+                    aq * br + ar * bt,
+                    as_ * bq + at * bs,
+                    as_ * br + at * bt)
+
+        def extract(z, j):
+            q, r, s, t = z
+            return (q * j + r) // (s * j + t)
+
+        def pi_digits():
+            z = (1, 0, 0, 1)
+            x = gen_x()
+            while 1:
+                y = extract(z, 3)
+                while y != extract(z, 4):
+                    z = compose(z, next(x))
+                    y = extract(z, 3)
+                z = compose((10, -10 * y, 0, 1), z)
+                yield y
+
+        return list(_islice(pi_digits(), n))
+
+    return calc_ndigits, (50,)
+
+tasks = [task_pidigits]
+
+def setprofile_load(task, args, items, repeat):
+    for i in range(repeat):
+        t1 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
+        for _ in range(repeat):
+            task(*args)
+        t2 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
+        items[i] = (t2 - t1) * 1000000000 / repeat
+
+def do_setprofile(repeat, chunk):
+    items = [0.0] * repeat
+    with open("setprofile.csv", "w") as f:
+        f.write("test;x1;s1;x2,s2\n")
+        for t in tasks:
+            print(t.__doc__)
+            # warm-up
+            fn, args = t()
+            setprofile_load(fn, args, items, repeat)
+
+            # baseline
+            setprofile_load(fn, args, items, repeat)
+            baseline = mkstats(items)
+
+            # setprofile
+            enable_perf()
+            setprofile_load(fn, args, items, repeat)
+            disable_perf()
+            inst = mkstats(items)
+
+            print("baseline {}".format(baseline))
+            print("instrum. {}".format(inst))
+            f.write("%s;%.0f;%.0f;%.0f;%.0f;\n" % (t.__doc__,
+                                        baseline['mean'], baseline['stdev'],
+                                        inst['mean'], inst['stdev']))
+
+
 def main():
     #
     # FIXME: add proper argument parsing
     #
     print(sys.version_info)
-    cmds = ['linear', 'cprofile', 'linuxprofile', 'stride', 'traceback', 'results']
+    cmds = ['linear', 'cprofile', 'linuxprofile', 'stride', 'traceback', 'results',
+            'setprofile', 'setprofile_perf']
     stride_types = { 'ext': stride_ext, 'py': stride_py }
 
     parser = argparse.ArgumentParser()
@@ -114,6 +191,16 @@ def main():
         do_traceback_overhead()
     if args.command == 'results':
         do_paper3_results(args.repeat, args.chunk, args.output)
+    if args.command == 'setprofile':
+        do_setprofile(args.repeat, args.chunk)
+    if args.command == 'setprofile_perf':
+        items = [0.0] * args.repeat
+        fn, opts = task_pidigits()
+        if not args.baseline:
+            enable_perf()
+        setprofile_load(fn, opts, items, args.repeat)
+        if not args.baseline:
+            disable_perf()
 
 
 
