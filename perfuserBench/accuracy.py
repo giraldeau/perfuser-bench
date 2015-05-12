@@ -109,6 +109,7 @@ def do_linuxprofile(repeat, chunk, factors):
     sampling.open(ev)
     sampling.enable()
     do_experiment(repeat, chunk, factors)
+    sampling.close()
     sampling.disable()
     api.disable_perf()
 
