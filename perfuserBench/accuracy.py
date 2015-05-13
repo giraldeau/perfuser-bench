@@ -101,7 +101,6 @@ def do_cprofile(repeat, chunk, factors):
     s.print_stats()
 
 def do_linuxprofile(repeat, chunk, factors):
-    api.enable_perf()
     ev = sampling.Event(type=sampling.TYPE_HARDWARE,
                         config=sampling.COUNT_HW_CPU_CYCLES,
                         sample_period=10000,
@@ -111,7 +110,6 @@ def do_linuxprofile(repeat, chunk, factors):
     do_experiment(repeat, chunk, factors)
     sampling.close()
     sampling.disable()
-    api.disable_perf()
 
 # named function wrapper for the report
 def stride_near(dst, src, stride):

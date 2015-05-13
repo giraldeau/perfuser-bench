@@ -3,7 +3,7 @@ from perfuserBench.accuracy import do_check_linear, do_cprofile, do_linuxprofile
     do_experiment
 from perfuserBench.microbench import do_traceback_overhead
 from linuxProfile.launch import ProfileRunnerPerfSampling, ProfileRunner
-from linuxProfile.api import sampling, enable_perf, disable_perf
+from linuxProfile.api import sampling
 import sys
 import time
 import statistics
@@ -22,7 +22,7 @@ def do_workload(items, repeat, chunk):
         t1 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
         do_experiment(1, chunk, profile_simple)
         t2 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
-        items[i] = (t2 - t1) * 1000000
+        items[i] = (t2 - t1) * 1000000000
 
 def make_results(event, period, repeat, chunk, monitor, output, items, baseline):
     print("experiment {}".format({"event": event, "period": period, "monitor": monitor}))
@@ -38,8 +38,8 @@ def make_results(event, period, repeat, chunk, monitor, output, items, baseline)
     h2 = sampling.hits()
     n = h2 - h1
 
-    overhead_abs = s["mean"] - baseline["mean"]
-    overhead_perc = overhead_abs / baseline["mean"] * 100
+    overhead_abs = s["elapsed"] - baseline["elapsed"]
+    overhead_perc = overhead_abs / baseline["elapsed"] * 100
     ev_cost = overhead_abs
     if (n > 0):
         ev_cost = overhead_abs / n
@@ -61,15 +61,9 @@ def do_paper3_results(repeat, chunk, output):
 
         # baseline measure
         do_workload(items, repeat, chunk)
-        noinst = mkstats(items)
-
-        enable_perf()
-        do_workload(items, repeat, chunk)
-        disable_perf()
         baseline = mkstats(items)
 
-        oh = (baseline['mean'] - noinst['mean']) / noinst['mean'] * 100
-        print('noinst = %.3f baseline = %.3f overhead = %.3f\n' % (noinst['mean'], baseline['mean'], oh))
+        print("baseline: {}".format(baseline))
 
         r = []
         for p in [10000, 100000, 1000000, 10000000]:
