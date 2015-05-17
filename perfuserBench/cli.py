@@ -119,12 +119,11 @@ tasks = [task_pidigits]
 def setprofile_load(task, args, items, repeat):
     for i in range(repeat):
         t1 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
-        for _ in range(repeat):
-            task(*args)
+        task(*args)
         t2 = time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
-        items[i] = (t2 - t1) * 1000000000 / repeat
+        items[i] = (t2 - t1)
 
-def do_setprofile(repeat, chunk):
+def do_setprofile(repeat, chunk, event, period, monitor):
     items = [0.0] * repeat
     with open("setprofile.csv", "w") as f:
         f.write("test;x1;s1;x2,s2\n")
@@ -139,13 +138,20 @@ def do_setprofile(repeat, chunk):
             baseline = mkstats(items)
 
             # setprofile
-            enable_perf()
+            prof = ProfileRunnerPerfSampling(event, period, monitor)
+            prof.enable()
             setprofile_load(fn, args, items, repeat)
-            disable_perf()
+            setprofile_load(fn, args, items, repeat)
+            prof.disable()
+            print("hits=%d\n" % (sampling.hits()))
             inst = mkstats(items)
+
+            overhead_abs = inst["elapsed"] - baseline["elapsed"]
+            overhead_perc = overhead_abs / baseline["elapsed"] * 100
 
             print("baseline {}".format(baseline))
             print("instrum. {}".format(inst))
+            print("overhead {}".format(overhead_perc))
             f.write("%s;%.0f;%.0f;%.0f;%.0f;\n" % (t.__doc__,
                                         baseline['mean'], baseline['stdev'],
                                         inst['mean'], inst['stdev']))
@@ -157,7 +163,7 @@ def main():
     #
     print(sys.version_info)
     cmds = ['linear', 'cprofile', 'linuxprofile', 'stride', 'traceback', 'results',
-            'setprofile', 'setprofile_perf']
+            'pi']
     stride_types = { 'ext': stride_ext, 'py': stride_py }
 
     parser = argparse.ArgumentParser()
@@ -170,6 +176,7 @@ def main():
     parser.add_argument('--baseline', action='store_true', default=False)
     parser.add_argument('--type', action='store', choices=stride_types.keys(), default='ext')
     parser.add_argument('--output', action='store', default='linuxprofile.csv')
+    parser.add_argument('--monitor', action='store', choices=["unwind", "traceback", "full"], default='full')
     args = parser.parse_args()
 
     if args.command == 'linear':
@@ -185,16 +192,5 @@ def main():
         do_traceback_overhead()
     if args.command == 'results':
         do_paper3_results(args.repeat, args.chunk, args.output)
-    if args.command == 'setprofile':
-        do_setprofile(args.repeat, args.chunk)
-    if args.command == 'setprofile_perf':
-        items = [0.0] * args.repeat
-        fn, opts = task_pidigits()
-        if not args.baseline:
-            enable_perf()
-        setprofile_load(fn, opts, items, args.repeat)
-        if not args.baseline:
-            disable_perf()
-
-
-
+    if args.command == 'pi':
+        do_setprofile(args.repeat, args.chunk, args.event, args.period, args.monitor)
